@@ -1,0 +1,13 @@
+# --- per-machine config & credentials (never commit) ---
+rt_local_config.m
+*.bin
+
+# --- MATLAB cruft ---
+*.asv
+*.mex*
+slprj/
+octave-workspace
+.DS_Store
+
+# Note: generated data (clips/, results/, ground_truth/, data/) lives in the
+# PARENT of this scripts/ repo, so it is outside the repo and never tracked.
