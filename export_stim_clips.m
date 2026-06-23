@@ -1,14 +1,17 @@
-function clipTable = export_stim_clips(session_rows, pre_s, post_s, overwrite, chmode, params)
+function clipTable = export_stim_clips(session_rows, pre_s, post_s, overwrite, chmode, params, max_clips)
 % EXPORT_STIM_CLIPS  Save one clip per individual stimulation. This is the
 % main data step (replaces full-session export): clips ARE the working data.
 %
-%   export_stim_clips                       % all sessions, 10 s pre / 30 s post
+%   export_stim_clips                       % all sessions, 10 s pre / 10 s post
 %   export_stim_clips(1)                    % only session row 1
 %   export_stim_clips([], pre_s, post_s)    % custom window
-%   export_stim_clips(rows, pre, post, overwrite, chmode, params)
+%   export_stim_clips(rows, pre, post, overwrite, chmode, params, max_clips)
 %
-%   chmode : 'electrode' (default) saves every contact on the stim electrode;
-%            'neighbors' saves only the stim pair +/- 1 contact.
+%   chmode    : 'electrode' (default) saves every contact on the stim electrode;
+%               'neighbors' saves only the stim pair +/- 1 contact.
+%   max_clips : stop after saving this many NEW clips (default Inf). Handy for a
+%               quick test, e.g. export_stim_clips(1,[],[],[],[],[],2). See also
+%               test_export_clips for a one-call test that also plots.
 %
 % Memory-safe by design: it never loads a whole session. For each session it
 %   (1) streams the data in chunks to find the stim events (find_session_stims),
@@ -24,10 +27,11 @@ function clipTable = export_stim_clips(session_rows, pre_s, post_s, overwrite, c
 
 if nargin < 1, session_rows = []; end
 if nargin < 2 || isempty(pre_s),  pre_s  = 10; end
-if nargin < 3 || isempty(post_s), post_s = 30; end
+if nargin < 3 || isempty(post_s), post_s = 10; end
 if nargin < 4 || isempty(overwrite), overwrite = 0; end
 if nargin < 5 || isempty(chmode), chmode = 'electrode'; end
 if nargin < 6, params = struct(); end
+if nargin < 7 || isempty(max_clips), max_clips = Inf; end
 
 L = rt_paths;   % sets up paths (project + IEEG toolbox)
 pwfile = L.ieeg_pw_file; login_name = L.ieeg_login;
@@ -39,8 +43,10 @@ vn = fT.Properties.VariableNames;
 endcol = vn{find(ismember(lower(vn), {'end','xend'}), 1)};
 
 clipTable = table();
+n_saved = 0;
 
 for si = session_rows(:)'
+    if n_saved >= max_clips, break; end
     ieeg_name  = fT.ieeg_name{si};
     modifier   = fT.Modifier(si);
     start_time = fT.start(si);
@@ -57,6 +63,7 @@ for si = session_rows(:)'
 
     % --- pass 2: pull + save a short clip per stim ---
     for e = 1:height(stimT)
+        if n_saved >= max_clips, break; end
         stimOn  = stimT.OnTime(e);
         stimOff = stimT.OffTime(e);
         pairStr = strjoin(sort(stimT.StimChs{e}),'-');
@@ -108,6 +115,7 @@ for si = session_rows(:)'
             'VariableNames', {'clip_name','session','event','stim_pair','channels', ...
             'stimOn','stimOff','clip_start','clip_end','mat','edf'})]; %#ok<AGROW>
 
+        n_saved = n_saved + 1;
         fprintf('  saved %s  (%d ch, %.1f s)\n', base, numel(idx), w1-w0);
     end
 end
