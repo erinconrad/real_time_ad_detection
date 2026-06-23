@@ -25,11 +25,17 @@ data(isnan(data)) = 0;
 labs = matlab.lang.makeUniqueStrings(matlab.lang.makeValidName(labels(:)'));
 labs = string(labs);
 
-% physical range per channel (ensure max > min so scaling is valid)
-pmin = min(data, [], 1);
-pmax = max(data, [], 1);
+% physical range per channel. EDF stores PhysicalMin/Max as 8-character text
+% fields, so values must be short: round outward to integers (floor/ceil so
+% the rounded range still contains the data -> no clipping) and clamp the
+% magnitude so the printed value fits in 8 chars (sign + up to 7 digits).
+pmin = floor(min(data, [], 1));
+pmax = ceil( max(data, [], 1));
 flat = pmax <= pmin;
 pmax(flat) = pmin(flat) + 1;
+lim = 9999999;
+pmin = max(pmin, -lim);
+pmax = min(pmax,  lim);
 
 hdr = edfheader("EDF");
 hdr.NumDataRecords     = 1;
