@@ -70,12 +70,18 @@ sidx = find(ismember(labels, clip.stim_pair));
 if ~isempty(sidx)
     A = max(max(abs(V(sonIdx:min(soffIdx,nS), sidx)), [], 1), [], 2);
     if ~isempty(A) && A > 0
+        over = false(nWin,1);
         for w = 1:nWin
             seg = V(post_starts(w):post_starts(w)+winN-1, sidx);
-            if max(abs(seg(:))) > p.stim_sat_frac * A
-                post_ok(w:end) = false; break;
-            end
+            over(w) = max(abs(seg(:))) > p.stim_sat_frac * A;
         end
+        deadwin = ceil(p.guard_deadtime_s / p.win_s);   % ignore post-offset decay tail
+        if deadwin >= 1, over(1:min(deadwin,nWin)) = false; end
+        cutoff = [];                                     % first run of >=2 consecutive = next stim
+        for w = 1:nWin-1
+            if over(w) && over(w+1), cutoff = w; break; end
+        end
+        if ~isempty(cutoff), post_ok(cutoff:end) = false; end
     end
 end
 
