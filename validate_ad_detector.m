@@ -79,8 +79,8 @@ for i = ev_idx'
 end
 fp_per_min = FP / max(mon_min, eps);
 
-% onset error on true positives
-te_tp = used & y & yh;
+% onset error on true positives (full-length masks)
+te_tp = used & label & pred;
 oe = onset(te_tp) - arrayfun(@(s) s.AD_onset, feats(te_tp)');
 oe = oe(~isnan(oe));
 
