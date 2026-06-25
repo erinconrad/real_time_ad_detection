@@ -61,27 +61,37 @@ F.z = nan(nWin, m);
 F.valid = true(nWin, m);
 F.win_t = clip.clip_start + (post_starts - 1)/fs;
 
-% --- next-stim / saturation guard ---
-% The stim contacts are in the clip; the NEXT stim re-saturates them. Measure
-% THIS stim's artifact amplitude on the stim contacts, then drop every post
-% window from the point the stim contacts exceed stim_sat_frac of it.
+% --- next-stim cap (preferred): truncate analysis before the NEXT stim ---
+% next_stim_on is the onset time of the following stim in the session, taken
+% from the stim event list (set by build_ad_features / export_stim_clips).
 post_ok = true(nWin,1);
-sidx = find(ismember(labels, clip.stim_pair));
-if ~isempty(sidx)
-    A = max(max(abs(V(sonIdx:min(soffIdx,nS), sidx)), [], 1), [], 2);
-    if ~isempty(A) && A > 0
-        over = false(nWin,1);
-        for w = 1:nWin
-            seg = V(post_starts(w):post_starts(w)+winN-1, sidx);
-            over(w) = max(abs(seg(:))) > p.stim_sat_frac * A;
+nso = inf;
+if isfield(clip,'next_stim_on') && ~isempty(clip.next_stim_on) && isfinite(clip.next_stim_on)
+    nso = clip.next_stim_on;
+end
+if isfinite(nso)
+    post_ok(F.win_t >= (nso - p.guard_margin_s)) = false;
+end
+
+% --- optional amplitude-based guard (off unless stim_sat_frac is finite) ---
+if isfinite(p.stim_sat_frac)
+    sidx = find(ismember(labels, clip.stim_pair));
+    if ~isempty(sidx)
+        A = max(max(abs(V(sonIdx:min(soffIdx,nS), sidx)), [], 1), [], 2);
+        if ~isempty(A) && A > 0
+            over = false(nWin,1);
+            for w = 1:nWin
+                seg = V(post_starts(w):post_starts(w)+winN-1, sidx);
+                over(w) = max(abs(seg(:))) > p.stim_sat_frac * A;
+            end
+            deadwin = ceil(p.guard_deadtime_s / p.win_s);
+            if deadwin >= 1, over(1:min(deadwin,nWin)) = false; end
+            cutoff = [];
+            for w = 1:nWin-1
+                if over(w) && over(w+1), cutoff = w; break; end
+            end
+            if ~isempty(cutoff), post_ok(cutoff:end) = false; end
         end
-        deadwin = ceil(p.guard_deadtime_s / p.win_s);   % ignore post-offset decay tail
-        if deadwin >= 1, over(1:min(deadwin,nWin)) = false; end
-        cutoff = [];                                     % first run of >=2 consecutive = next stim
-        for w = 1:nWin-1
-            if over(w) && over(w+1), cutoff = w; break; end
-        end
-        if ~isempty(cutoff), post_ok(cutoff:end) = false; end
     end
 end
 

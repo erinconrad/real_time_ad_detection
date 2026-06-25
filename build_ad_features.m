@@ -32,6 +32,9 @@ feats = struct('clip_name',{},'patient',{},'label',{},'AD',{}, ...
     'AD_onset',{},'AD_offset',{},'ad_ongoing',{},'stimOn',{},'stimOff',{}, ...
     'clip_start',{},'clip_end',{},'F',{});
 
+% session -> sorted stim onset times (for the next-stim cap)
+stimMap = load_stim_times(L, remote_clips);
+
 fprintf('Building features for %d annotated clips...\n', numel(sel));
 for k = 1:numel(sel)
     i = sel(k);
@@ -49,6 +52,16 @@ for k = 1:numel(sel)
         end
     end
     C = load(local_mat); clip = C.clip;
+
+    % next stim onset in this session (from the stim event list)
+    tag = sprintf('%s_%d', clip.ieeg_name, clip.modifier);
+    if isKey(stimMap, tag)
+        ons = stimMap(tag);
+        nxt = ons(ons > clip.stimOff + 1e-6);
+        if ~isempty(nxt), clip.next_stim_on = nxt(1); else, clip.next_stim_on = inf; end
+    elseif ~isfield(clip,'next_stim_on')
+        clip.next_stim_on = inf;
+    end
 
     F = ad_clip_features(clip, p);
 
@@ -87,6 +100,30 @@ end
 
 function v = getcol(t, name, i)
 if ismember(name, t.Properties.VariableNames), v = t.(name)(i); else, v = NaN; end
+end
+
+
+function M = load_stim_times(L, remote_clips)
+% Map: session tag -> sorted stim onset times, from clip_index.csv (all stims).
+M = containers.Map('KeyType','char','ValueType','any');
+idx = fullfile(L.clip_dir,'clip_index.csv');
+if exist(idx,'file')~=2 && ~isempty(remote_clips)
+    tmp = fullfile(tempdir,'clip_index.csv');
+    [host,rpath] = split_remote(remote_clips);
+    if system(sprintf('scp -q "%s:%s/clip_index.csv" "%s"',host,rpath,tmp))==0
+        idx = tmp;
+    end
+end
+if exist(idx,'file')~=2
+    warning('No clip_index.csv found; next-stim cap disabled.');
+    return;
+end
+T = readtable(idx,'TextType','char');
+sess = string(T.session);
+u = unique(sess);
+for i = 1:numel(u)
+    M(char(u(i))) = sort(T.stimOn(sess==u(i)));
+end
 end
 
 

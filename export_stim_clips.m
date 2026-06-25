@@ -101,6 +101,7 @@ for si = session_rows(:)'
         clip.clip_end   = w1;
         clip.pre_s      = pre_s;
         clip.post_s     = post_s;
+        if e < height(stimT), clip.next_stim_on = stimT.OnTime(e+1); else, clip.next_stim_on = inf; end
         save(mat_path, 'clip');
 
         try

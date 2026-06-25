@@ -10,10 +10,12 @@ d.baseline_trim = 0.2;      % drop this top fraction of pre-stim windows (artifa
 d.hf_guard      = true;     % veto windows with high high-frequency power
 d.hf_band       = [70 120]; % HF artifact band (Hz)
 d.hf_z          = 5;        % HF z above baseline => window invalid
-d.stim_sat_frac = 0.5;      % next-stim if stim-contact amplitude exceeds this
-                            % fraction of THIS stim's artifact ...
-d.guard_deadtime_s = 2;     % ... ignoring this much post-offset decay tail, and
-                            % requiring >=2 consecutive windows (sustained)
+d.guard_margin_s = 0.5;     % cut post-stim analysis this many s BEFORE the next
+                            % stim onset (next-stim time comes from the stim
+                            % event list, not a signal check)
+d.stim_sat_frac = Inf;      % optional amplitude-based next-stim guard; OFF by
+                            % default (Inf). Set e.g. 0.8 to also enable it.
+d.guard_deadtime_s = 2;     % amplitude guard: ignore this much post-offset decay
 d.N             = 3;        % consecutive windows above threshold to call AD
 d.T             = 4;        % z-score threshold (tuned by validate_ad_detector)
 d.min_ad_dur    = 3;        % annotated ADs shorter than this excluded from validation (s)
