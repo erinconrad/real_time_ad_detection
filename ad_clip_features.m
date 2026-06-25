@@ -61,6 +61,24 @@ F.z = nan(nWin, m);
 F.valid = true(nWin, m);
 F.win_t = clip.clip_start + (post_starts - 1)/fs;
 
+% --- next-stim / saturation guard ---
+% The stim contacts are in the clip; the NEXT stim re-saturates them. Measure
+% THIS stim's artifact amplitude on the stim contacts, then drop every post
+% window from the point the stim contacts exceed stim_sat_frac of it.
+post_ok = true(nWin,1);
+sidx = find(ismember(labels, clip.stim_pair));
+if ~isempty(sidx)
+    A = max(max(abs(V(sonIdx:min(soffIdx,nS), sidx)), [], 1), [], 2);
+    if ~isempty(A) && A > 0
+        for w = 1:nWin
+            seg = V(post_starts(w):post_starts(w)+winN-1, sidx);
+            if max(abs(seg(:))) > p.stim_sat_frac * A
+                post_ok(w:end) = false; break;
+            end
+        end
+    end
+end
+
 for j = 1:m
     % --- baseline LL (robust, trimmed) ---
     blLL = window_LL(Xf(:,j), bl_starts, winN);
@@ -86,6 +104,7 @@ for j = 1:m
             F.valid(:,j) = zhf < p.hf_z;
         end
     end
+    F.valid(:,j) = F.valid(:,j) & post_ok;   % drop next-stim/saturation windows
 end
 end
 

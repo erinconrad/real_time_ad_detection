@@ -10,6 +10,8 @@ d.baseline_trim = 0.2;      % drop this top fraction of pre-stim windows (artifa
 d.hf_guard      = true;     % veto windows with high high-frequency power
 d.hf_band       = [70 120]; % HF artifact band (Hz)
 d.hf_z          = 5;        % HF z above baseline => window invalid
+d.stim_sat_frac = 0.5;      % post window invalid (next stim) if stim-contact
+                            % amplitude exceeds this fraction of THIS stim's artifact
 d.N             = 3;        % consecutive windows above threshold to call AD
 d.T             = 4;        % z-score threshold (tuned by validate_ad_detector)
 d.min_ad_dur    = 3;        % annotated ADs shorter than this excluded from validation (s)
