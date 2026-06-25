@@ -119,10 +119,28 @@ if exist(idx,'file')~=2
     return;
 end
 T = readtable(idx,'TextType','char');
-sess = string(T.session);
+vn = T.Properties.VariableNames;
+
+% session key per row (use 'session' column, else derive from clip_name)
+if ismember('session', vn)
+    sess = string(T.session);
+elseif ismember('clip_name', vn)
+    sess = regexprep(string(T.clip_name), '_ev\d+.*$', '');
+else
+    warning('clip_index.csv has no session/clip_name; next-stim cap disabled.');
+    M = containers.Map('KeyType','char','ValueType','any'); return;
+end
+
+if ~ismember('stimOn', vn)
+    warning('clip_index.csv has no stimOn; next-stim cap disabled.');
+    M = containers.Map('KeyType','char','ValueType','any'); return;
+end
+on = T.stimOn;
+if iscell(on), on = str2double(string(on)); end
+
 u = unique(sess);
 for i = 1:numel(u)
-    M(char(u(i))) = sort(T.stimOn(sess==u(i)));
+    M(char(u(i))) = sort(on(sess==u(i)));
 end
 end
 
