@@ -13,8 +13,8 @@ function build_ad_features(params, remote_clips)
 
 if nargin < 1, params = struct(); end
 if nargin < 2, remote_clips = ''; end
+L = rt_paths;            % sets up the path (incl. helpers/) first
 p = ad_params(params);
-L = rt_paths;
 
 gt_csv = fullfile(L.gt_dir, 'clip_gt.csv');
 assert(exist(gt_csv,'file')==2, 'No ground truth at %s', gt_csv);

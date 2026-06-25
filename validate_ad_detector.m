@@ -17,8 +17,8 @@ function res = validate_ad_detector(params)
 % per-clip CSV.
 
 if nargin < 1, params = struct(); end
+L = rt_paths;            % sets up the path (incl. helpers/) first
 p = ad_params(params);
-L = rt_paths;
 
 f = fullfile(L.results_dir,'ad_features.mat');
 assert(exist(f,'file')==2, 'Run build_ad_features first (no %s).', f);
