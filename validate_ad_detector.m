@@ -85,6 +85,7 @@ oe = onset(te_tp) - arrayfun(@(s) s.AD_onset, feats(te_tp)');
 oe = oe(~isnan(oe));
 
 auc = roc_auc(score(eval), label(eval));
+[T_at_spec, sens_at_spec, spec_actual] = op_at_spec(score(eval), label(eval), p.target_spec);
 
 % --- report ---
 fprintf('\n============ AD detector validation (LOPO CV, N=%d) ============\n', p.N);
@@ -95,6 +96,8 @@ fprintf('PPV         : %.1f%%\n', 100*ppv);
 fprintf('FPR         : %.1f%%  (%.2f false pos / min)\n', 100*fpr, fp_per_min);
 fprintf('Accuracy    : %.1f%%\n', 100*acc);
 fprintf('ROC-AUC     : %.3f\n', auc);
+fprintf('Operating point @ %.0f%% specificity: sensitivity %.1f%% (T=%.2f)\n', ...
+    100*spec_actual, 100*sens_at_spec, T_at_spec);
 fprintf('Suggested threshold T (median across folds): %.2f\n', median(Tfold));
 if ~isempty(oe)
     fprintf('AD onset error (detector - human): median %.2f s (IQR %.2f to %.2f)\n', ...
@@ -104,6 +107,7 @@ end
 res = struct('N',p.N,'TP',TP,'FN',FN,'FP',FP,'TN',TN,'sensitivity',sens, ...
     'specificity',spec,'ppv',ppv,'fpr',fpr,'accuracy',acc,'auc',auc, ...
     'fp_per_min',fp_per_min,'T_suggested',median(Tfold), ...
+    'T_at_spec',T_at_spec,'sens_at_spec',sens_at_spec,'spec_target',spec_actual, ...
     'onset_err_median',median(oe));
 
 % per-clip table
@@ -126,6 +130,24 @@ for t = 1:numel(cand)
     spec = sum(~label & ~yh)/max(Nn,1);
     J = sens + spec - 1;
     if J > bestJ, bestJ = J; Tstar = cand(t); end
+end
+end
+
+
+function [Tt, sensT, specT] = op_at_spec(score, label, target_spec)
+% Most-sensitive threshold whose specificity is >= target_spec (on the ROC).
+P = sum(label); Nn = sum(~label);
+cand = unique(score(isfinite(score)));
+cand = [min(cand)-1; cand(:)];
+Tt = max(cand); sensT = 0; specT = 1;
+best = -1;
+for t = 1:numel(cand)
+    yh = score > cand(t);
+    spec = sum(~label & ~yh)/max(Nn,1);
+    sens = sum(label & yh)/max(P,1);
+    if spec >= target_spec && sens > best
+        best = sens; Tt = cand(t); sensT = sens; specT = spec;
+    end
 end
 end
 

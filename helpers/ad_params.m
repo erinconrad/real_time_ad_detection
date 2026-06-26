@@ -28,6 +28,7 @@ d.guard_deadtime_s = 2;     % amplitude guard: ignore this much post-offset deca
 d.N             = 3;        % consecutive windows above threshold to call AD
 d.T             = 4;        % z-score threshold (tuned by validate_ad_detector)
 d.min_ad_dur    = 3;        % annotated ADs shorter than this excluded from validation (s)
+d.target_spec   = 0.90;     % report sensitivity at this specificity (stable operating point)
 
 if nargin < 1 || isempty(o), o = struct(); end
 p = d;
