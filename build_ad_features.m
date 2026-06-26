@@ -104,60 +104,45 @@ end
 
 
 function M = load_stim_times(L, remote_clips)
-% Map: session tag -> sorted stim onset times, from clip_index.csv (all stims).
+% Map: session tag -> sorted stim onset times for ALL stims in the session.
+% Built by scanning the clip .mat files (robust; the clip_index.csv can be
+% malformed). Cached to results/stim_times.mat -- delete that file to refresh
+% after exporting new clips.
 M = containers.Map('KeyType','char','ValueType','any');
-idx = fullfile(L.clip_dir,'clip_index.csv');
-if exist(idx,'file')~=2 && ~isempty(remote_clips)
-    tmp = fullfile(tempdir,'clip_index.csv');
-    [host,rpath] = split_remote(remote_clips);
-    if system(sprintf('scp -q "%s:%s/clip_index.csv" "%s"',host,rpath,tmp))==0
-        idx = tmp;
-    end
+
+cache = fullfile(L.results_dir,'stim_times.mat');
+if exist(cache,'file')==2
+    S = load(cache); M = S.M; return;
 end
-if exist(idx,'file')~=2
-    warning('No clip_index.csv found; next-stim cap disabled.');
+
+if ~isempty(remote_clips)
+    % don't scp the whole clip set just for times; skip (cap disabled)
+    warning('Remote build: next-stim cap disabled (run build on the server to enable).');
     return;
 end
-T = readtable(idx,'TextType','char');
-vn = T.Properties.VariableNames;
 
-nameCol = find_col(vn, {'clip_name','clip','name'});
-sessCol = find_col(vn, {'session','tag'});
-onCol   = find_col(vn, {'stimOn','stim_on','onset','start','stimstart'});
-
-if isempty(onCol) || (isempty(nameCol) && isempty(sessCol))
-    warning(['clip_index.csv columns not recognized; next-stim cap disabled.\n' ...
-             'Columns found: %s'], strjoin(vn, ', '));
-    M = containers.Map('KeyType','char','ValueType','any'); return;
+d = dir(fullfile(L.clip_dir,'*.mat'));
+if isempty(d)
+    warning('No clips found to build stim-time index; next-stim cap disabled.');
+    return;
 end
 
-if ~isempty(sessCol)
-    sess = string(T.(vn{sessCol}));
-else
-    sess = regexprep(string(T.(vn{nameCol})), '_ev\d+.*$', '');
+fprintf('Building stim-time index by scanning %d clips (one-time)...\n', numel(d));
+acc = containers.Map('KeyType','char','ValueType','any');
+for i = 1:numel(d)
+    try
+        C = load(fullfile(L.clip_dir, d(i).name), 'clip'); clip = C.clip;
+    catch
+        continue;
+    end
+    tag = sprintf('%s_%d', clip.ieeg_name, clip.modifier);
+    if isKey(acc, tag), acc(tag) = [acc(tag); clip.stimOn]; else, acc(tag) = clip.stimOn; end
 end
-on = T.(vn{onCol});
-if iscell(on) || isstring(on), on = str2double(string(on)); end
+k = keys(acc);
+for i = 1:numel(k), M(k{i}) = sort(acc(k{i})); end
 
-u = unique(sess);
-for i = 1:numel(u)
-    M(char(u(i))) = sort(on(sess==u(i)));
-end
-end
-
-function c = find_col(vn, cands)
-% first variable name matching a candidate (exact, case-insensitive), else
-% the first that contains a candidate substring
-c = [];
-lv = lower(vn);
-for k = 1:numel(cands)
-    j = find(strcmp(lv, lower(cands{k})), 1);
-    if ~isempty(j), c = j; return; end
-end
-for k = 1:numel(cands)
-    j = find(contains(lv, lower(cands{k})), 1);
-    if ~isempty(j), c = j; return; end
-end
+save(cache, 'M');
+fprintf('Saved stim-time index -> %s\n', cache);
 end
 
 
