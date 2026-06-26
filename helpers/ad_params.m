@@ -11,8 +11,8 @@ d.hf_guard      = true;     % veto HF-artifact windows
 d.hf_band       = [70 120]; % HF artifact band (Hz)
 d.hf_z          = 5;        % HF z above baseline => artifact ...
 d.hf_ratio      = 1.0;      % ... OR HF power exceeds this fraction of 1-50 Hz power
-d.hf_spare_z    = 8;        % but NEVER veto a window whose in-band LL z exceeds
-                            % this (a clear AD), so spiky ADs are protected
+d.hf_spare_ratio= 0.2;      % but NEVER veto an in-band-dominated window
+                            % (HF/in-band < this): that's a real AD, not buzz
 d.notch60       = true;     % causal 60 Hz notch before line length
 d.line_ratio    = 0.5;      % exclude a candidate channel if its 60 Hz band power
                             % exceeds this fraction of its 1-50 Hz power (Inf=off)

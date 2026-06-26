@@ -132,7 +132,7 @@ for j = 1:m
             zhf = (postHF - m2)/s2;
         end
         ratio = postHF ./ (inband + eps);
-        spare = F.z(:,j) >= p.hf_spare_z;
+        spare = ratio < p.hf_spare_ratio;           % in-band dominated => real AD
         hf_bad(:,j) = ~spare & ( zhf >= p.hf_z | ratio > p.hf_ratio );
     end
     % exclude this candidate channel entirely if it is swamped by 60 Hz line noise

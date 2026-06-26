@@ -121,26 +121,42 @@ end
 T = readtable(idx,'TextType','char');
 vn = T.Properties.VariableNames;
 
-% session key per row (use 'session' column, else derive from clip_name)
-if ismember('session', vn)
-    sess = string(T.session);
-elseif ismember('clip_name', vn)
-    sess = regexprep(string(T.clip_name), '_ev\d+.*$', '');
-else
-    warning('clip_index.csv has no session/clip_name; next-stim cap disabled.');
+nameCol = find_col(vn, {'clip_name','clip','name'});
+sessCol = find_col(vn, {'session','tag'});
+onCol   = find_col(vn, {'stimOn','stim_on','onset','start','stimstart'});
+
+if isempty(onCol) || (isempty(nameCol) && isempty(sessCol))
+    warning(['clip_index.csv columns not recognized; next-stim cap disabled.\n' ...
+             'Columns found: %s'], strjoin(vn, ', '));
     M = containers.Map('KeyType','char','ValueType','any'); return;
 end
 
-if ~ismember('stimOn', vn)
-    warning('clip_index.csv has no stimOn; next-stim cap disabled.');
-    M = containers.Map('KeyType','char','ValueType','any'); return;
+if ~isempty(sessCol)
+    sess = string(T.(vn{sessCol}));
+else
+    sess = regexprep(string(T.(vn{nameCol})), '_ev\d+.*$', '');
 end
-on = T.stimOn;
-if iscell(on), on = str2double(string(on)); end
+on = T.(vn{onCol});
+if iscell(on) || isstring(on), on = str2double(string(on)); end
 
 u = unique(sess);
 for i = 1:numel(u)
     M(char(u(i))) = sort(on(sess==u(i)));
+end
+end
+
+function c = find_col(vn, cands)
+% first variable name matching a candidate (exact, case-insensitive), else
+% the first that contains a candidate substring
+c = [];
+lv = lower(vn);
+for k = 1:numel(cands)
+    j = find(strcmp(lv, lower(cands{k})), 1);
+    if ~isempty(j), c = j; return; end
+end
+for k = 1:numel(cands)
+    j = find(contains(lv, lower(cands{k})), 1);
+    if ~isempty(j), c = j; return; end
 end
 end
 
