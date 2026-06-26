@@ -104,18 +104,27 @@ if isfinite(p.stim_sat_frac)
     end
 end
 
+% pass 1: robust baseline median/MAD per channel
+med_all = zeros(1,m); mad_all = zeros(1,m);
 for j = 1:m
-    % --- baseline LL (robust, trimmed) ---
     blLL = window_LL(Xf(:,j), bl_starts, winN);
-    if isempty(blLL)
-        med = 0; scale = 1;
-    else
+    if ~isempty(blLL)
         s = sort(blLL);
         keepN = max(1, floor(numel(s)*(1 - p.baseline_trim)));
         s = s(1:keepN);
-        med = median(s);
-        scale = 1.4826*median(abs(s - med)) + eps;
+        med_all(j) = median(s);
+        mad_all(j) = median(abs(s - med_all(j)));
     end
+end
+% electrode-typical baseline LL: floors the scale so a very quiet channel
+% cannot become hypersensitive (tiny MAD -> huge z for a small bump)
+gmed = median(med_all);
+if isempty(gmed) || isnan(gmed), gmed = 0; end
+
+% pass 2: z-scores (with scale floor) + guards
+for j = 1:m
+    med = med_all(j);
+    scale = max(1.4826*mad_all(j), p.min_scale_frac*gmed) + eps;
     postLL = window_LL(Xf(:,j), post_starts, winN);
     F.z(:,j) = (postLL - med)/scale;
 

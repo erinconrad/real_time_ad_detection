@@ -7,6 +7,9 @@ d.bp_order      = 4;        % Butterworth order
 d.win_s         = 1;        % LL window length (s)
 d.n_candidates  = 2;        % nearest non-stim bipolar pairs to search
 d.baseline_trim = 0.2;      % drop this top fraction of pre-stim windows (artifact)
+d.min_scale_frac= 0.25;     % floor the z-score scale at this fraction of the
+                            % electrode's typical baseline LL (avoids inflated z
+                            % on very quiet channels)
 d.hf_guard      = true;     % veto HF-artifact windows
 d.hf_band       = [70 120]; % HF artifact band (Hz)
 d.hf_z          = 5;        % HF z above baseline => artifact ...
