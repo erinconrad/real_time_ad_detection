@@ -1,4 +1,4 @@
-function F = ad_clip_features(clip, params)
+function [F, dbg] = ad_clip_features(clip, params)
 % AD_CLIP_FEATURES  Compute per-window line-length z-scores for the candidate
 % AD channels of one clip. This is the front end shared by the offline
 % detector and the validation harness.
@@ -22,6 +22,7 @@ p = ad_params(params);
 fs = clip.fs;
 labels = clip.labels(:);
 V = clip.values;
+dbg = struct();
 
 [pairs, plabs] = ad_candidate_pairs(labels, clip.stim_pair, p.n_candidates);
 F.chan_labels = plabs(:)';
@@ -39,6 +40,12 @@ Xraw = X;
 % causal band-pass for line length
 [bb, aa] = butter(p.bp_order, p.bp_band/(fs/2), 'bandpass');
 Xf = filter(bb, aa, X);
+
+% causal 60 Hz notch so line noise does not inflate the line length
+if p.notch60 && (fs/2) > 62
+    [bn, an] = butter(2, [58 62]/(fs/2), 'stop');
+    Xf = filter(bn, an, Xf);
+end
 
 % sample indices for stim on/off relative to clip start
 nS = size(V,1);
@@ -60,6 +67,8 @@ nWin = numel(post_starts);
 F.z = nan(nWin, m);
 F.valid = true(nWin, m);
 F.win_t = clip.clip_start + (post_starts - 1)/fs;
+hf_bad   = false(nWin, m);   % windows vetoed by the HF guard
+line_bad = false(1, m);      % channels excluded for 60 Hz line noise
 
 % --- next-stim cap (preferred): truncate analysis before the NEXT stim ---
 % next_stim_on is the onset time of the following stim in the session, taken
@@ -117,11 +126,27 @@ for j = 1:m
         if ~isempty(blHF)
             m2 = median(blHF); s2 = 1.4826*median(abs(blHF - m2)) + eps;
             zhf = (postHF - m2)/s2;
-            F.valid(:,j) = zhf < p.hf_z;
+            hf_bad(:,j) = zhf >= p.hf_z;
         end
     end
-    F.valid(:,j) = F.valid(:,j) & post_ok;   % drop next-stim/saturation windows
+    % exclude this candidate channel entirely if it is swamped by 60 Hz line noise
+    if isfinite(p.line_ratio) && (fs/2) > 61
+        p60  = bandpower(Xraw(:,j), fs, [59 61]);
+        psig = bandpower(Xraw(:,j), fs, [1 min(50, floor(fs/2)-1)]);
+        line_bad(j) = p60/(psig + eps) > p.line_ratio;
+    end
+
+    F.valid(:,j) = ~hf_bad(:,j) & ~line_bad(j) & post_ok;
 end
+
+% diagnostics (why windows were invalid)
+dbg.chan_labels = F.chan_labels;
+dbg.win_t = F.win_t;
+dbg.z = F.z;
+dbg.hf_bad = hf_bad;
+dbg.line_bad = line_bad;
+dbg.cap_bad = ~post_ok;
+dbg.T = p.T; dbg.N = p.N;
 end
 
 

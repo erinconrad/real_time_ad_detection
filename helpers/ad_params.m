@@ -10,6 +10,9 @@ d.baseline_trim = 0.2;      % drop this top fraction of pre-stim windows (artifa
 d.hf_guard      = true;     % veto windows with high high-frequency power
 d.hf_band       = [70 120]; % HF artifact band (Hz)
 d.hf_z          = 5;        % HF z above baseline => window invalid
+d.notch60       = true;     % causal 60 Hz notch before line length
+d.line_ratio    = 0.5;      % exclude a candidate channel if its 60 Hz band power
+                            % exceeds this fraction of its 1-50 Hz power (Inf=off)
 d.guard_margin_s = 0.5;     % cut post-stim analysis this many s BEFORE the next
                             % stim onset (next-stim time comes from the stim
                             % event list, not a signal check)
