@@ -119,12 +119,21 @@ for j = 1:m
     postLL = window_LL(Xf(:,j), post_starts, winN);
     F.z(:,j) = (postLL - med)/scale;
 
-    % --- HF buzz guard: veto windows where HF power dominates the in-band
-    % power (buzz), but NOT spiky ADs whose energy is mostly 1-50 Hz ---
+    % --- HF artifact guard: veto windows that are HF-elevated above baseline
+    % OR HF-dominated (buzz), but NEVER veto a clearly AD-like window
+    % (in-band LL z >= hf_spare_z), so spiky ADs are protected ---
     if do_hf
-        hfp    = window_bp(Xraw(:,j), post_starts, winN, fs, [p.hf_band(1) hf_hi]);
+        blHF   = window_bp(Xraw(:,j), bl_starts,   winN, fs, [p.hf_band(1) hf_hi]);
+        postHF = window_bp(Xraw(:,j), post_starts, winN, fs, [p.hf_band(1) hf_hi]);
         inband = window_bp(Xraw(:,j), post_starts, winN, fs, [1 min(50,floor(fs/2)-1)]);
-        hf_bad(:,j) = hfp ./ (inband + eps) > p.hf_ratio;
+        zhf = zeros(nWin,1);
+        if ~isempty(blHF)
+            m2 = median(blHF); s2 = 1.4826*median(abs(blHF - m2)) + eps;
+            zhf = (postHF - m2)/s2;
+        end
+        ratio = postHF ./ (inband + eps);
+        spare = F.z(:,j) >= p.hf_spare_z;
+        hf_bad(:,j) = ~spare & ( zhf >= p.hf_z | ratio > p.hf_ratio );
     end
     % exclude this candidate channel entirely if it is swamped by 60 Hz line noise
     if isfinite(p.line_ratio) && (fs/2) > 61

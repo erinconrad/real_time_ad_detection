@@ -7,10 +7,12 @@ d.bp_order      = 4;        % Butterworth order
 d.win_s         = 1;        % LL window length (s)
 d.n_candidates  = 2;        % nearest non-stim bipolar pairs to search
 d.baseline_trim = 0.2;      % drop this top fraction of pre-stim windows (artifact)
-d.hf_guard      = true;     % veto windows dominated by high-frequency buzz
+d.hf_guard      = true;     % veto HF-artifact windows
 d.hf_band       = [70 120]; % HF artifact band (Hz)
-d.hf_ratio      = 1.0;      % veto window if HF power exceeds this fraction of the
-                            % 1-50 Hz power (buzz is HF-dominated; ADs are not)
+d.hf_z          = 5;        % HF z above baseline => artifact ...
+d.hf_ratio      = 1.0;      % ... OR HF power exceeds this fraction of 1-50 Hz power
+d.hf_spare_z    = 8;        % but NEVER veto a window whose in-band LL z exceeds
+                            % this (a clear AD), so spiky ADs are protected
 d.notch60       = true;     % causal 60 Hz notch before line length
 d.line_ratio    = 0.5;      % exclude a candidate channel if its 60 Hz band power
                             % exceeds this fraction of its 1-50 Hz power (Inf=off)
